@@ -1,36 +1,59 @@
 import cv2
 import numpy as np
 import os
-
+import warnings
+import numpy as np
 import pytesseract
-
 import HandTrackingModule as htm
+import pygame
 
 brushThickness = 15
 eraserThickness = 75
+score = 0
+keyFinal = 0
+press = True
+
+with warnings.catch_warnings():
+    warnings.simplefilter(action='ignore', category=FutureWarning)
+
+pygame.init()
+correct_sound = pygame.mixer.Sound('C:\\Users\\Karan\\Desktop\\Projects\\Brush Detector\\Sounds\\correct_sound.mp3')
+wrong_sound = pygame.mixer.Sound('C:\\Users\\Karan\\Desktop\\Projects\\Brush Detector\\Sounds\\wrong_sound.mp3')
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
 folderPath = "Header"
 myList = os.listdir(folderPath)
-print(myList)
+#print(myList)
 
 folderPath1 = "Button"
 myList1 = os.listdir(folderPath1)
-print(myList1)
+#print(myList1)
+
+folderPath2 = "Letter"
+myList2 = os.listdir(folderPath2)
+#print(myList2)
 
 overlayList = []
 overlayList1 = []
+overlayList2 = []
 
 for imPath in myList:
     image = cv2.imread(f'{folderPath}/{imPath}')
     overlayList.append(image)
 header = overlayList[0]
+scoreCard = overlayList[3]
+detectedText = overlayList[2]
 
 for imPath in myList1:
     image1 = cv2.imread(f'{folderPath1}/{imPath}')
     overlayList1.append(image1)
 button = overlayList1[0]
+
+for imPath in myList2:
+    image2 = cv2.imread(f'{folderPath2}/{imPath}')
+    overlayList2.append(image2)
+letter = overlayList2[0]
 
 drawColor = (0, 255, 0)
 cap = cv2.VideoCapture(0)
@@ -45,7 +68,8 @@ imgCanvas = np.zeros((360, 640, 3), np.uint8)
 while True:
     success, img = cap.read()
     img = cv2.flip(img, 1)
-
+    scoreText = str(score)
+    cv2.putText(img, scoreText, (10, 245), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
     img = detector.findHands(img)
     lmList = detector.findPosition(img, draw=False)
 
@@ -56,15 +80,45 @@ while True:
 
         fingers = detector.fingersUp()
 
+        letterDisplay = 0
+
+        key = cv2.waitKey(1) & 0xFF
+        if key != 255:
+            print(chr(key))
+            key = key - 32
+            keyFinal = key
+            press = True
+            letterDisplay = key - 65
+            letter = overlayList2[letterDisplay+1]
 
         if fingers[1] and fingers[2]:
             xp, yp = 0, 0
-            print("Selection mode")
+            #print("Selection mode")
             if 0 < x1 < 60 and 90 < y1 < 150:
+
                 button = overlayList1[0]
                 detected_text = pytesseract.image_to_string(imgInv, config='--psm 10')
-                print("Text detected :" + detected_text)
-                cv2.putText(img, detected_text, (530, 320), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                #print("Text detected :" + detected_text)
+                detected_text = detected_text[0]
+                detectedTextInt = ord(detected_text)
+                #print("detectedTextInt: ", detectedTextInt)
+                #print("keyFinal: ", keyFinal)
+                if detectedTextInt == keyFinal:
+                    if press:
+                        score = score + 1
+                        scoreText = str(score)
+                        press = False
+                        correct_sound.play()
+                        letter = overlayList2[0]
+                        cv2.rectangle(imgCanvas, (0, 0), (640, 360), (0, 0, 0), cv2.FILLED)
+                else:
+                    if press:
+                        press = False
+                        wrong_sound.play()
+                        letter = overlayList2[0]
+                        cv2.rectangle(imgCanvas, (0, 0), (640, 360), (0, 0, 0), cv2.FILLED)
+
+                cv2.putText(img, detected_text, (582, 130), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
             if y1 < 90:
                 if 0 < x1 < 320:
                     header = overlayList[0]
@@ -77,7 +131,7 @@ while True:
 
         if fingers[1] and fingers[2] == False:
             cv2.circle(img, (x1, y1), 15, drawColor, cv2.FILLED)
-            print("Drawing mode")
+            #print("Drawing mode")
             if xp == 0 and yp == 0:
                 xp, yp = x1, y1
 
@@ -91,6 +145,10 @@ while True:
 
     img[0:90, 0:640] = header
     img[90:150, 0:60] = button
+    img[170:210, 0:60] = scoreCard
+    img[100:150, 460:568] = detectedText
+    img[164:340, 460:624] = letter
+    cv2.rectangle(img, (70, 100), (450, 340), (255, 255, 255), 2)
 
     imgGray = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2GRAY)
     _, imgInv = cv2.threshold(imgGray, 50, 255, cv2.THRESH_BINARY_INV)
@@ -99,5 +157,5 @@ while True:
     img = cv2.bitwise_or(img, imgCanvas)
 
     cv2.imshow("Result", img)
-    #cv2.imshow("Canvas", imgInv)
+    # cv2.imshow("Canvas", imgInv)
     cv2.waitKey(1)
