@@ -21,6 +21,7 @@ wrong_sound = pygame.mixer.Sound('C:\\Users\\Karan\\Desktop\\Projects\\Brush Det
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
+
 folderPath = "Header"
 myList = os.listdir(folderPath)
 
@@ -38,8 +39,9 @@ for imPath in myList:
     image = cv2.imread(f'{folderPath}/{imPath}')
     overlayList.append(image)
 header = overlayList[0]
-scoreCard = overlayList[3]
 detectedText = overlayList[2]
+footer = overlayList[3]
+scoreCard = overlayList[4]
 
 for imPath in myList1:
     image1 = cv2.imread(f'{folderPath1}/{imPath}')
@@ -54,12 +56,12 @@ letter = overlayList2[0]
 drawColor = (0, 0, 255)
 cap = cv2.VideoCapture(0)
 cap.set(3, 640)
-cap.set(4, 360)
+cap.set(4, 480)
 
 detector = htm.handDetector(detectionConf=0.85)
 xp, yp = 0, 0
 
-imgCanvas = np.zeros((360, 640, 3), np.uint8)
+imgCanvas = np.zeros((480, 640, 3), np.uint8)
 
 while True:
     success, img = cap.read()
@@ -94,8 +96,10 @@ while True:
                 button = overlayList1[0]
                 detected_text = pytesseract.image_to_string(imgInv, config='--psm 10')
                 detected_text = detected_text[0]
+                if detected_text != 'o':
+                    print(detected_text)
                 detectedTextInt = ord(detected_text)
-                if detectedTextInt == keyFinal:
+                if detectedTextInt == keyFinal or detectedTextInt-32 == keyFinal:
                     if press:
                         score = score + 1
                         scoreText = str(score)
@@ -139,6 +143,7 @@ while True:
     img[170:210, 0:60] = scoreCard
     img[100:150, 460:568] = detectedText
     img[164:340, 460:624] = letter
+    img[360:490, 0:640] = footer
     cv2.rectangle(img, (70, 100), (450, 340), (0, 0, 0), 2)
 
     imgGray = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2GRAY)
@@ -148,5 +153,4 @@ while True:
     img = cv2.bitwise_or(img, imgCanvas)
 
     cv2.imshow("Result", img)
-    # cv2.imshow("Canvas", imgInv)
     cv2.waitKey(1)
